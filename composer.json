@@ -5,7 +5,7 @@
     "require": {
         "php": "^7.3|^8.2",
         "laravel/framework": "^9.0|^11.0",
-        "mertcanureten/laravel-postman-collection": "dev-main"
+        "mertcanureten/laravel-postman-collection": "main"
     },
     "autoload": {
         "psr-4": {
