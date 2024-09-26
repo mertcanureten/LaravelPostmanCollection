@@ -10,6 +10,9 @@ class PostmanCollectionGenerator
     public function generate()
     {
         $routes = Route::getRoutes();
+        $apiRoutes = collect($routes)->filter(function ($route) {
+            return in_array('api', $route->gatherMiddleware());
+        });
         $collection = [
             'info' => [
                 'name' => 'Laravel API',
@@ -19,7 +22,7 @@ class PostmanCollectionGenerator
             'item' => []
         ];
 
-        foreach ($routes as $route) {
+        foreach ($apiRoutes as $route) {
             $action = $route->getAction();
             $controller = $action['controller'] ?? null;
             $description = $this->getDescription($controller, $action['as'] ?? null);
