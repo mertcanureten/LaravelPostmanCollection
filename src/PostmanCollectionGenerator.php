@@ -9,8 +9,7 @@ class PostmanCollectionGenerator
 {
     public function generate()
     {
-        $routes = Route::getRoutes();
-        $apiRoutes = collect($routes)->filter(function ($route) {
+        $apiRoutes = collect(Route::getRoutes())->filter(function ($route) {
             return in_array('api', $route->gatherMiddleware());
         });
         $collection = [
