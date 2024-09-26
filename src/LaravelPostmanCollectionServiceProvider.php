@@ -1,6 +1,6 @@
 <?php
 
-namespace Mertcanureten\LaravelPostmanCollectionServiceProvider;
+namespace Mertcanureten\LaravelPostmanCollection;
 
 use Illuminate\Support\ServiceProvider;
 
