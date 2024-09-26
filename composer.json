@@ -14,7 +14,7 @@
     "extra": {
         "laravel": {
             "providers": [
-                "Mertcanureten\\LaravelPostmanCollection\\LaravelPostmanCollectionServiceProvider"
+                "Mertcanureten\\LaravelPostmanCollection\\LaravelPostmanCollectionServiceProvider" 
             ]
         }
     },
