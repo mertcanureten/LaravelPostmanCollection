@@ -1,0 +1,21 @@
+{
+    "name": "mertcanureten/laravel-postman-collection",
+    "description": "A Laravel package to generate Postman collections from API routes.",
+    "type": "library",
+    "require": {
+        "php": "^7.3|^8.0",
+        "laravel/framework": "^8.0|^9.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Mertcanureten\\LaravelPostmanCollection\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Mertcanureten\\LaravelPostmanCollection\\ServiceProvider"
+            ]
+        }
+    }
+}
