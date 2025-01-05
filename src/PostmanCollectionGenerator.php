@@ -7,66 +7,133 @@ use ReflectionMethod;
 
 class PostmanCollectionGenerator
 {
+    private $config;
+    
+    public function __construct()
+    {
+        $this->config = [
+            'auth' => [
+                'type' => 'bearer',
+                'bearer' => ['token' => '{{auth_token}}']
+            ]
+        ];
+    }
+
     public function generate()
     {
-        $apiRoutes = collect(Route::getRoutes())->filter(function ($route) {
-            return in_array('api', $route->gatherMiddleware());
-        });
-        $collection = [
-            'info' => [
-                'name' => 'Laravel API',
-                'description' => 'Generated Postman Collection from Laravel API routes',
-                'schema' => 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
-            ],
-            'item' => []
-        ];
+        try {
+            $apiRoutes = collect(Route::getRoutes())->filter(function ($route) {
+                return in_array('api', $route->gatherMiddleware());
+            });
 
-        foreach ($apiRoutes as $route) {
-            $action = $route->getAction();
-            $controller = $action['controller'] ?? null;
-            $description = $this->getDescription($controller, $action['as'] ?? null);
-
-            $collection['item'][] = [
-                'name' => $route->getName() ?? 'Unnamed Route',
-                'request' => [
-                    'method' => $route->methods()[0],
-                    'header' => [],
-                    'body' => [],
-                    'url' => [
-                        'raw' => url($route->uri()),
-                        'host' => [parse_url(url('/'), PHP_URL_HOST)],
-                        'path' => explode('/', trim($route->uri(), '/')),
-                    ],
-                    'description' => $description,
+            $collection = [
+                'info' => [
+                    'name' => config('app.name', 'Laravel') . ' API',
+                    'description' => 'Generated Postman Collection from Laravel API routes',
+                    'schema' => 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
                 ],
-                'param' => $this->getParameters($route->parameters(), $controller),
+                'auth' => $this->config['auth'],
+                'item' => $this->groupRoutesByPrefix($apiRoutes)
             ];
+
+            return $collection;
+        } catch (\Exception $e) {
+            throw new \RuntimeException("Failed to generate collection: " . $e->getMessage());
+        }
+    }
+
+    private function groupRoutesByPrefix($routes)
+    {
+        $groups = [];
+        
+        foreach ($routes as $route) {
+            $prefix = explode('/', $route->uri())[0] ?? 'general';
+            
+            if (!isset($groups[$prefix])) {
+                $groups[$prefix] = [
+                    'name' => ucfirst($prefix),
+                    'item' => []
+                ];
+            }
+
+            $groups[$prefix]['item'][] = $this->createRequestItem($route);
         }
 
-        return $collection;
+        return array_values($groups);
+    }
+
+    private function createRequestItem($route)
+    {
+        $action = $route->getAction();
+        $controller = $action['controller'] ?? null;
+        $description = $this->getDescription($controller, $action['as'] ?? null);
+
+        return [
+            'name' => $route->getName() ?? $route->uri(),
+            'request' => [
+                'method' => $route->methods()[0],
+                'header' => [
+                    [
+                        'key' => 'Accept',
+                        'value' => 'application/json'
+                    ],
+                    [
+                        'key' => 'Content-Type',
+                        'value' => 'application/json'
+                    ]
+                ],
+                'body' => [
+                    'mode' => 'raw',
+                    'raw' => '{}',
+                    'options' => [
+                        'raw' => [
+                            'language' => 'json'
+                        ]
+                    ]
+                ],
+                'url' => [
+                    'raw' => url($route->uri()),
+                    'host' => [parse_url(url('/'), PHP_URL_HOST)],
+                    'path' => explode('/', trim($route->uri(), '/')),
+                ],
+                'description' => $description,
+            ],
+            'response' => []
+        ];
     }
 
     private function getParameters($params, $controller)
     {
-        $paramArray = [];
-        $actionMethod = explode('@', $controller)[1];
+        try {
+            $paramArray = [];
+            if (!$controller) return $paramArray;
 
-        // User modelini kullanarak $fillable değerlerini alıyoruz
-        $fillableFields = (new \App\Models\User())->getFillable();
+            list($controllerClass, $actionMethod) = explode('@', $controller);
+            
+            // Controller sınıfından model bilgisini almaya çalış
+            $controllerInstance = app($controllerClass);
+            $model = property_exists($controllerInstance, 'model') ? 
+                     app($controllerInstance->model) : null;
 
-        foreach ($params as $key => $value) {
-            // Eğer parametre request'ten geliyorsa
-            if (in_array($key, $fillableFields)) {
-                $paramArray[] = [
-                    'key' => $key,
-                    'value' => $value,
-                    'description' => "The {$key} field for the user.",
-                    'type' => $this->getParamType($controller, $actionMethod, $key),
-                ];
+            if ($model) {
+                $fillableFields = $model->getFillable();
+                
+                foreach ($params as $key => $value) {
+                    if (in_array($key, $fillableFields)) {
+                        $paramArray[] = [
+                            'key' => $key,
+                            'value' => $value,
+                            'description' => "The {$key} field.",
+                            'type' => $this->getParamType($controller, $actionMethod, $key),
+                        ];
+                    }
+                }
             }
-        }
 
-        return $paramArray;
+            return $paramArray;
+        } catch (\Exception $e) {
+            return [];
+        }
     }
 
     private function getParamType($controller, $methodName, $paramName)
